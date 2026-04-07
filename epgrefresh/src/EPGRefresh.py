@@ -65,6 +65,8 @@ class EPGRefresh:
 		self.refreshAdapter = None
 		# to call additional tasks (from other plugins)
 		self.finishNotifiers = {}
+		# flag to indicate if started by timer wakeup (allows shutdown after)
+		self.isWakeupRefresh = False
 
 		# Mtime of configuration files
 		self.configMtime = -1
@@ -176,7 +178,7 @@ class EPGRefresh:
 			self.refreshAdapter.stop()
 			self.refreshAdapter = None
 
-	def forceRefresh(self, session=None):
+	def forceRefresh(self, session=None, isWakeup=False):
 		print("[EPGRefresh] Forcing start of EPGRefresh")
 		if self.session is None:
 			if session is not None:
@@ -185,6 +187,7 @@ class EPGRefresh:
 				return False
 
 		self.forcedScan = True
+		self.isWakeupRefresh = isWakeup
 		self.prepareRefresh()
 		return True
 
@@ -218,7 +221,7 @@ class EPGRefresh:
 			try:
 				if not service.valid():
 					continue
-			except:
+			except Exception:
 				continue
 
 			if (service.flags & (eServiceReference.isMarker | eServiceReference.isDirectory)):
@@ -292,7 +295,7 @@ class EPGRefresh:
 			try:
 				if self.session is not None:
 					self.session.open(MessageBox, message, MessageBox.TYPE_INFO, timeout=10)
-			except:
+			except Exception:
 				print("[EPGRefresh] Error while opening Messagebox!")
 				print_exc(file=stdout)
 				Notifications.AddPopup(message, MessageBox.TYPE_INFO, 10)
@@ -338,7 +341,7 @@ class EPGRefresh:
 			AdjustExtensionsmenu(True, extPendingServDescriptor)
 			AdjustExtensionsmenu(True, extStopDescriptor)
 			AdjustExtensionsmenu(False, extRunDescriptor)
-		except:
+		except ImportError:
 			print("[EPGRefresh] Error while adding 'Stop Running EPG-Refresh' to Extensionmenu")
 			print_exc(file=stdout)
 		if config.plugins.epgrefresh.erase.value:
@@ -359,7 +362,7 @@ class EPGRefresh:
 			AdjustExtensionsmenu(False, extPendingServDescriptor)
 			AdjustExtensionsmenu(False, extStopDescriptor)
 			housekeepingExtensionsmenu(config.plugins.epgrefresh.show_run_in_extensionsmenu, force=True)
-		except:
+		except ImportError:
 			print("[EPGRefresh] Error while removing 'Stop Running EPG-Refresh' to Extensionmenu:")
 			print_exc(file=stdout)
 
@@ -411,10 +414,11 @@ class EPGRefresh:
 				deferred.addCallback(self._nextTodo)
 				deferred.addErrback(self._autotimerErrback)
 			#except Exception as e:
-			except:
+			except Exception:
 				from traceback import format_exc
 				#print("[EPGRefresh] Could not start AutoTimer:", e)
 				print("[EPGRefresh] Could not start AutoTimer:" + str(format_exc()))
+				self._nextTodo()
 		else:
 			self._nextTodo()
 
@@ -433,7 +437,14 @@ class EPGRefresh:
 #				Notifications.AddPopup(_("Found a total of %d matching Events.\n%d Timer were added and\n%d modified,\n%d conflicts encountered,\n%d similars added.") \
 #					% (ret[0], ret[1], ret[2], len(ret[4]), len(ret[5])),
 #					MessageBox.TYPE_INFO, 10)
-		self._nextTodo()
+		# Add a delay to ensure AutoTimer has time to complete processing
+		# especially important when waking from deep standby
+		print("[EPGRefresh] Debug: Waiting for AutoTimer to complete...")
+		epgrefreshtimer.add(EPGRefreshTimerEntry(
+			int(time()) + 5,
+			self._nextTodo,
+			nocheck=True)
+		)
 
 	def _callFinishNotifiers(self, *args, **kwargs):
 		for notifier in list(self.finishNotifiers.keys()):
@@ -448,18 +459,23 @@ class EPGRefresh:
 		epgrefreshtimer.cleanup()
 		self.maybeStopAdapter()
 
+		self.forcedScan = False
+		self.isrunning = False
+		self._nextTodo()
+
 		# shutdown if we're supposed to go to deepstandby and not recording
-		if not self.forcedScan and config.plugins.epgrefresh.afterevent.value \
+		# allow shutdown for timer wakeup even if forcedScan is true
+		# moved after _nextTodo() to ensure all async operations (like AutoTimer) complete first
+		if self.isWakeupRefresh and config.plugins.epgrefresh.afterevent.value \
 			and not Screens.Standby.inTryQuitMainloop:
-			self.forcedScan = False
+			self.isWakeupRefresh = False
 
 			if Screens.Standby.inStandby:
 				self.session.open(Screens.Standby.TryQuitMainloop, 1)
 			else:
 				Notifications.AddNotificationWithID("Shutdown", Screens.Standby.TryQuitMainloop, 1)
-		self.forcedScan = False
-		self.isrunning = False
-		self._nextTodo()
+		else:
+			self.isWakeupRefresh = False
 
 	def refresh(self):
 		if self.doStopRunningRefresh:
@@ -567,7 +583,7 @@ class EPGRefresh:
 				servtxt = servtxt + _("%d more services") % (servcounter)
 			session.open(MessageBox, _("Following Services have to be scanned:")
 				+ "\n" + servtxt, MessageBox.TYPE_INFO)
-		except:
+		except Exception:
 			print("[EPGRefresh] showPendingServices Error!")
 			print_exc(file=stdout)
 

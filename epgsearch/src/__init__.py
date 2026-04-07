@@ -4,7 +4,7 @@ from Tools.Directories import resolveFilename, SCOPE_PLUGINS
 try:
 	from Components.SystemInfo import BoxInfo
 	IMAGEDISTRO = BoxInfo.getItem("distro")
-except:
+except ImportError:
 	from boxbranding import getImageDistro
 	IMAGEDISTRO = getImageDistro()
 from enigma import eServiceReference, eServiceCenter
@@ -206,3 +206,5 @@ purgeOrbposConfig()
 
 config.plugins.epgsearch.enableorbpos = ConfigYesNo(default=False)
 config.plugins.epgsearch.invertorbpos = ConfigSelection(choices=[_("include"), _("exclude")], default=_("include"))
+
+__version__ = "1.0"

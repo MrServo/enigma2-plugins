@@ -58,7 +58,7 @@ config.plugins.imdb.showepisodeinfo = ConfigYesNo(default=False)
 
 def getPage(url, params=None, data=None, headers=None, cookies=None):
 	headers = headers or {}
-	headers["user-agent"] = "Mozilla/5.0 Gecko/20100101 Firefox/100.0"
+	headers["user-agent"] = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 	return deferToThread(requests.post if data else requests.get, url, params=params, data=data, headers=headers, cookies=cookies, timeout=30.05)
 
 
@@ -78,7 +78,7 @@ def safeRemove(*names):
 	for name in names:
 		try:
 			os.remove(name)
-		except:
+		except OSError:
 			pass
 
 
@@ -86,7 +86,7 @@ def quoteEventName(eventName):
 	# BBC uses '\x86' markers in program names, remove them
 	try:
 		text = eventName.decode('utf8').replace(u'\x86', u'').replace(u'\x87', u'').encode('utf8')
-	except:
+	except Exception:
 		text = eventName
 	return quote_plus(text)
 
@@ -142,7 +142,7 @@ def get(json, path, default=""):
 		# (e.g. the storyline of "As You Want Me" / "Come mi vuoi").
 		try:
 			json = json.encode("latin1").decode("utf8")
-		except:
+		except Exception:
 			pass
 		if six.PY2:
 			json = json.encode("utf8")
@@ -258,6 +258,7 @@ class IMDB(Screen, HelpableScreen):
 		self.resultlist = []
 		self["menu"] = MenuList(self.resultlist)
 		self["menu"].hide()
+		self["menu"].onSelectionChanged.append(self.searchPlot)
 		self["key_red"] = Button(_("Exit"))
 		self["key_green"] = Button("")
 		self["key_yellow"] = Button("")
@@ -378,7 +379,7 @@ class IMDB(Screen, HelpableScreen):
 		self.html = open(self.localpath).read()
 		try:
 			self.json = open(os.path.splitext(self.localpath)[0] + ".json").read()
-		except:
+		except Exception:
 			pass
 		self.IMDBparse()
 
@@ -394,104 +395,98 @@ class IMDB(Screen, HelpableScreen):
 					print("[IMDb] getting TMD via POST")
 					query = (
 						'{"query":"'
-						'\\n'
-						'    query Title_Storyline($titleId: ID!) {\\n'
-						'        title(id: $titleId) {\\n'
-						'            ...StorylineFeature\\n'
-						'        }\\n'
-						'    }\\n'
-						'    \\n'
-						'    fragment StorylineFeature on Title {\\n'
-						'        id\\n'
-						'        ...Title_Storyline_PlotSection\\n'
-						'        ...Title_Storyline_Taglines\\n'
-						'        ...Title_Storyline_Genres\\n'
-						'        ...Title_Storyline_Certificate\\n'
-						'        ...Title_Storyline_ParentsGuide\\n'
-						'    }\\n'
-						'    \\n'
-						'    fragment Title_Storyline_PlotSection on Title {\\n'
-						'        summaries: plots(first: 1, filter: { type: SUMMARY }) {\\n'
-						'            edges {\\n'
-						'                node {\\n'
-						'                    ...PlotData\\n'
-						'                    author\\n'
-						'                }\\n'
-						'            }\\n'
-						'        }\\n'
-						'        outlines: plots(first: 1, filter: { type: OUTLINE }) {\\n'
-						'            edges {\\n'
-						'                node {\\n'
-						'                    ...PlotData\\n'
-						'                }\\n'
-						'            }\\n'
-						'        }\\n'
-						'        synopses: plots(first: 1, filter: { type: SYNOPSIS }) {\\n'
-						'            edges {\\n'
-						'                node {\\n'
-						'                    ...PlotData\\n'
-						'                }\\n'
-						'            }\\n'
-						'        }\\n'
-						'        storylineKeywords: keywords(first: 5) {\\n'
-						'            edges {\\n'
-						'                node {\\n'
-						'                    legacyId\\n'
-						'                    text\\n'
-						'                }\\n'
-						'            }\\n'
-						'            total\\n'
-						'        }\\n'
-						'    }\\n'
-						'    fragment PlotData on Plot {\\n'
-						'        plotText {\\n'
-						'            plaidHtml\\n'
-						'        }\\n'
-						'    }\\n'
-						'\\n'
-						'    \\n'
-						'    fragment Title_Storyline_Taglines on Title {\\n'
-						'        taglines(first: 1) {\\n'
-						'            edges {\\n'
-						'                node {\\n'
-						'                    text\\n'
-						'                }\\n'
-						'            }\\n'
-						'            total\\n'
-						'        }\\n'
-						'    }\\n'
-						'\\n'
-						'    \\n'
-						'    fragment Title_Storyline_Genres on Title {\\n'
-						'        genres {\\n'
-						'            genres {\\n'
-						'                id\\n'
-						'                text\\n'
-						'            }\\n'
-						'        }\\n'
-						'    }\\n'
-						'\\n'
-						'    \\n'
-						'    fragment Title_Storyline_Certificate on Title {\\n'
-						'        certificate {\\n'
-						'            rating\\n'
-						'            ratingReason\\n'
-						'            ratingsBody {\\n'
-						'                id\\n'
-						'            }\\n'
-						'        }\\n'
-						'    }\\n'
-						'\\n'
-						'    \\n'
-						'    fragment Title_Storyline_ParentsGuide on Title {\\n'
-						'        parentsGuide {\\n'
-						'            guideItems(first: 0) {\\n'
-						'                total\\n'
-						'            }\\n'
-						'        }\\n'
-						'    }\\n'
-						'\\n'
-						'\\n'
+						'query Title_Storyline($titleId: ID!) {\n'
+						'  title(id: $titleId) {\n'
+						'    ...StorylineFeature\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment StorylineFeature on Title {\n'
+						'  id\n'
+						'  ...Title_Storyline_PlotSection\n'
+						'  ...Title_Storyline_Taglines\n'
+						'  ...Title_Storyline_Genres\n'
+						'  ...Title_Storyline_Certificate\n'
+						'  ...Title_Storyline_ParentsGuide\n'
+						'}\n'
+						'\n'
+						'fragment Title_Storyline_PlotSection on Title {\n'
+						'  summaries: plots(first: 1, filter: {type: SUMMARY}) {\n'
+						'    edges {\n'
+						'      node {\n'
+						'        ...PlotData\n'
+						'        author\n'
+						'      }\n'
+						'    }\n'
+						'  }\n'
+						'  outlines: plots(first: 1, filter: {type: OUTLINE}) {\n'
+						'    edges {\n'
+						'      node {\n'
+						'        ...PlotData\n'
+						'      }\n'
+						'    }\n'
+						'  }\n'
+						'  synopses: plots(first: 1, filter: {type: SYNOPSIS}) {\n'
+						'    edges {\n'
+						'      node {\n'
+						'        ...PlotData\n'
+						'      }\n'
+						'    }\n'
+						'  }\n'
+						'  storylineKeywords: keywords(first: 5) {\n'
+						'    edges {\n'
+						'      node {\n'
+						'        legacyId\n'
+						'        text\n'
+						'      }\n'
+						'    }\n'
+						'    total\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment PlotData on Plot {\n'
+						'  plotText {\n'
+						'    plaidHtml\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment Title_Storyline_Taglines on Title {\n'
+						'  taglines(first: 1) {\n'
+						'    edges {\n'
+						'      node {\n'
+						'        text\n'
+						'      }\n'
+						'    }\n'
+						'    total\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment Title_Storyline_Genres on Title {\n'
+						'  genres {\n'
+						'    genres {\n'
+						'      id\n'
+						'      text\n'
+						'    }\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment Title_Storyline_Certificate on Title {\n'
+						'  certificate {\n'
+						'    rating\n'
+						'    ratingReason\n'
+						'    ratingsBody {\n'
+						'      id\n'
+						'    }\n'
+						'  }\n'
+						'}\n'
+						'\n'
+						'fragment Title_Storyline_ParentsGuide on Title {\n'
+						'  parentsGuide {\n'
+						'    guideItems(first: 0) {\n'
+						'      total\n'
+						'    }\n'
+						'  }\n'
+						'}'
 						'",'
 						'"operationName":"Title_Storyline",'
 						'"variables":{"titleId":"%s"},'
@@ -538,7 +533,7 @@ class IMDB(Screen, HelpableScreen):
 		def makedate(date):
 			try:
 				return strftime(config.usage.date.full.value, strptime(date, "%Y-%m-%d"))
-			except:
+			except Exception:
 				return date
 
 		for review in reviews:
@@ -550,12 +545,12 @@ class IMDB(Screen, HelpableScreen):
 					helpful = _("%d out of %d found this helpful.") % (helpful, total)
 				else:
 					helpful = ""
-			except:
+			except Exception:
 				helpful = ""
 			self.reviews.append({
 				'rating': str(get(review, 'authorRating')),
 				'title': html2text(get(review, ('summary', 'originalText'))),
-				'author': html2text(get(review, ('author', 'nickName'))),
+				'author': html2text(get(review, ('author', 'username', 'text'))),
 				'date': makedate(get(review, 'submissionDate')),
 				'spoiler': get(review, 'spoiler') and self.spoiler_i18n,
 				'review': html2text(get(review, ('text', 'originalText', 'plaidHtml'))),
@@ -569,7 +564,7 @@ class IMDB(Screen, HelpableScreen):
 		params = {
 			"operationName": 'TitleReviewsRefine',
 			"variables": '{"const":"%s","first":25}' % self.titleId,
-			"extensions": '{"persistedQuery":{"sha256Hash":"89aff4cd7503e060ff1dd5aba91885d8bac0f7a21aa1e1f781848a786a5bdc19","version":1}}'
+			"extensions": '{"persistedQuery":{"sha256Hash":"d389bc70c27f09c00b663705f0112254e8a7c75cde1cfd30e63a2d98c1080c87","version":1}}'
 		}
 		download = getPage("https://caching.graphql.imdb.com/", params=params, headers={"content-type": "application/json"}, cookies=self.cookie)
 		download.addCallback(self.gotReviews).addErrback(self.http_failed)
@@ -583,7 +578,7 @@ class IMDB(Screen, HelpableScreen):
 		self["detailslabel"].show()
 
 		if self.resultlist and self.Page == 0:
-			title, titleId = self["menu"].getCurrent()
+			title, titleId, plot = self["menu"].getCurrent()
 			self.downloadTitle(title, titleId)
 			self["menu"].hide()
 			self.resetLabels()
@@ -712,7 +707,7 @@ class IMDB(Screen, HelpableScreen):
 					open(isave + "-reviews.json", 'w').write(self.reviewsJSON)
 				try:
 					copy("/tmp/poster.jpg", isave + ".jpg")
-				except:
+				except OSError:
 					pass
 			self["statusbar"].setText(_("IMDb save completed"))
 		except Exception as e:
@@ -875,7 +870,7 @@ class IMDB(Screen, HelpableScreen):
 
 		if self.eventName:
 			self["statusbar"].setText(_("Query IMDb: %s") % self.eventName)
-			fetchurl = "https://www.imdb.com/find?s=tt&q=" + quoteEventName(self.eventName)
+			fetchurl = "https://www.imdb.com/find/?s=tt&q=" + quoteEventName(self.eventName)
 #			print("[IMDB] getIMDB() Downloading Query", fetchurl)
 			download = getPage(fetchurl, cookies=self.cookie)
 			download.addCallback(self.IMDBquery).addErrback(self.http_failed)
@@ -894,7 +889,8 @@ class IMDB(Screen, HelpableScreen):
 			self.resultlist = []
 			titles = {}
 			for x in searchresults:
-				series = get(x, 'seriesId')
+				x = x['listItem']
+				series = get(x, ('series', 'id'))
 				if series:
 					if not config.plugins.imdb.showepisoderesults.value:
 						continue
@@ -904,67 +900,49 @@ class IMDB(Screen, HelpableScreen):
 							if titles[t] >= i:
 								titles[t] += 1
 					else:
-						title = get(x, 'seriesNameText')
-						year = get(x, 'seriesReleaseText')
-						typ = config.plugins.imdb.showlongmenuinfo.value and get(x, 'seriesTypeText') or ""
-						if year or typ:
-							title += " ("
-							if year:
-								title += year
-							if typ:
-								if year:
-									title += "; "
-								title += typ
-							title += ")"
-						self.resultlist.append((title, series))
+						title = get(x, ('series', 'titleText'))
+						year = get(x, ('series', 'releaseYear', 'year'))
+						if year:
+							title += " (%s)" % year
+						self.resultlist.append((title, series, ""))
 						i = titles[series] = len(self.resultlist)
 					title = "- "
-					s = get(x, 'seriesSeasonText')
-					if s == "Unknown":  # not translated
-						s = ""
-					e = get(x, 'seriesEpisodeText')
-					if e == "Unknown":
-						e = ""
 				else:
-					title = s = e = ""
+					title = ""
 					i = len(self.resultlist)
-				title += get(x, 'titleNameText')
-				year = get(x, 'titleReleaseText')
+				title += get(x, 'titleText')
+				year = get(x, 'releaseYear')
 				if config.plugins.imdb.showlongmenuinfo.value:
-					typ = not series and get(x, 'titleTypeText') or ""
-					cast = get(x, 'topCredits')
+					typ = get(x, ('titleType', 'text')) or ""
+					# This always seems to be empty, instead using another
+					# query (when you click the "i") to get director & stars.
+					# I thought about doing that, but don't think it's necessary.
+					# cast = get(x, 'principalCredits')
+					genres = "/".join(get(x, 'genres', []))
+					runtime = get(x, 'runtime', 0) // 60
+					hours = runtime // 60
+					minutes = runtime % 60
+					runtime = ""
+					if hours:
+						runtime += str(hours) + _("h")
+					if minutes:
+						if hours:
+							runtime += " "
+						runtime += str(minutes) + _("m")
 				else:
-					typ = cast = ""
-				if year or typ or cast or s or e:
-					title += " ("
-					semicolon = False
-					if year:
-						title += year
-						semicolon = True
-					if typ:
-						if semicolon:
-							title += "; "
-						semicolon = True
-						title += typ
-					if s:
-						if semicolon:
-							title += "; "
-						semicolon = True
-						title += _("S") + s
-					if e:
-						if s:
-							title += " "
-						elif semicolon:
-							title += "; "
-						semicolon = True
-						title += _("E") + e
-					if cast:
-						if semicolon:
-							title += "; "
-						semicolon = True
-						title += six.ensure_str(", ".join(cast))
-					title += ")"
-				self.resultlist.insert(i, (title, get(x, 'id')))
+					typ = genres = runtime = ""
+				extras = []
+				if year:
+					extras.append(str(year))
+				if runtime:
+					extras.append(runtime)
+				if typ:
+					extras.append(typ)
+				if genres:
+					extras.append(six.ensure_str(genres))
+				if extras:
+					title += " (%s)" % "; ".join(extras)
+				self.resultlist.insert(i, (title, get(x, 'titleId'), get(x, 'plot')))
 			Len = len(self.resultlist)
 			self["menu"].l.setList(self.resultlist)
 			if Len == 1:
@@ -977,6 +955,11 @@ class IMDB(Screen, HelpableScreen):
 				self["statusbar"].setText(_("No IMDb match:") + ' ' + self.eventName)
 		else:
 			self["detailslabel"].setText(_("IMDb query failed!"))
+
+	def searchPlot(self):
+		cur = self["menu"].getCurrent()
+		if cur:
+			self["statusbar"].setText(cur[2])
 
 	def http_failed(self, failure):
 		text = _("IMDb Download failed")
@@ -1056,9 +1039,9 @@ class IMDB(Screen, HelpableScreen):
 			countries = get(main, ('countriesDetails', 'countries'))
 
 			categories_i18n = {
-				'director': get(main, ('directors', 'category', 'text')),
-				'writer': get(main, ('writers', 'category', 'text')),
-				'creator': get(main, ('creators', 'category', 'text')),
+				'director': "",
+				'writer': "",
+				'creator': "",
 				'episodes': get(i18n, 'title_main_episodes_title'),
 				'seasons': get(i18n, 'common_seasons'),
 				'premiere': get(i18n, 'title_main_details_releaseDate'),
@@ -1086,11 +1069,11 @@ class IMDB(Screen, HelpableScreen):
 			self.spoiler_i18n = get(i18n, 'common_label_spoiler', _("Spoiler"))
 
 			self.generalinfos = {
-				'director': ", ".join(get(name, ('name', 'nameText', 'text')) for name in get(main, ('directors', 'credits'))),
-				'creator': ", ".join(get(name, ('name', 'nameText', 'text')) for name in get(main, ('creators', 'credits'))),
+				'director': "",
+				'writer': "",
+				'creator': "",
 				'episodes': get(main, ('episodes', 'totalEpisodes', 'total')),
 				'seasons': len(get(main, ('episodes', 'seasons'))),
-				'writer': ", ".join(get(name, ('name', 'nameText', 'text')) + (name.get('attributes') and " (" + name['attributes'][0]['text'] + ")" or "") for name in get(main, ('writers', 'credits'))),
 				'country': ', '.join(get(country, 'text') for country in countries),
 				'premiere': main['releaseDate'] and "%s (%s)" % (makedate(main['releaseDate']), get(main, ('releaseDate', 'country', 'text'))),
 				# there's also main['releaseYear']['year']
@@ -1098,6 +1081,20 @@ class IMDB(Screen, HelpableScreen):
 				'rating': get(fold, ('ratingsSummary', 'aggregateRating')),
 				'poster': get(fold, ('primaryImage', 'url'))
 			}
+
+			crew = get(main, 'crewV2')
+			for credit in crew:
+				groupId = credit['grouping']['groupingId']
+				key = None
+				if groupId == 'amzn1.imdb.concept.name_credit_category.ace5cb4c-8708-4238-9542-04641e7c8171':
+					key = 'director'
+				elif groupId == 'amzn1.imdb.concept.name_credit_category.c84ecaff-add5-4f2e-81db-102a41881fe3':
+					key = 'writer'
+				elif groupId == 'amzn1.imdb.concept.name_credit_group.85198717-6c2d-481e-93a5-47858774bcce':
+					key = 'creator'
+				if key:
+					categories_i18n[key] = get(credit, ('grouping', 'text'))
+					self.generalinfos[key] = ", ".join(get(name, ('name', 'nameText', 'text')) for name in get(credit, 'credits'))
 
 			Titeltext = self.eventName
 			if len(Titeltext) > 57:
@@ -1131,14 +1128,15 @@ class IMDB(Screen, HelpableScreen):
 				Ratingtext = _("no user rating yet")
 			self["ratinglabel"].setText(Ratingtext)
 
-			cast = get(main, ('cast', 'edges'))
+			cast = get(main, ('castV2', 'credits'))
 			if cast:
 				Castlist = [get(i18n, 'title_main_cast_title') + ":"]
 
 				def character(credit):
 					char = get(credit, ('name', 'nameText', 'text'))
-					if credit['characters']:
-						char += " " + get(i18n, 'common_cast_characterName_with_as').format(characterName=" / ".join(get(ch, 'name') for ch in credit['characters']))
+					characters = get(credit, ('creditedRoles', 'edges', 'node', 'characters', 'edges'))
+					if characters:
+						char += " " + get(i18n, 'common_cast_characterName_with_as').format(characterName=" / ".join(get(ch, ('node', 'name')) for ch in characters))
 					# if credit['attributes']:
 					#	char += " (%s)" % "; ".join(get(attr, 'text') for attr in name['attributes'])
 					if config.plugins.imdb.showepisodeinfo.value:
@@ -1153,7 +1151,7 @@ class IMDB(Screen, HelpableScreen):
 					return char
 
 				for node in cast:
-					Castlist.append(character(node['node']))
+					Castlist.append(character(node))
 				Casttext = "\n ".join(Castlist)
 			else:
 				Casttext = _("No cast list found in the database.")

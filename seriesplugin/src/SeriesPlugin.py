@@ -34,8 +34,6 @@ from .XMLTVBase import XMLTVBase
 from .ThreadQueue import ThreadQueue
 from threading import Thread
 
-import six
-
 
 #from enigma import ePythonMessagePump
 
@@ -80,35 +78,35 @@ def getInstance():
 		try:
 			from Components.SystemInfo import BoxInfo
 			log.debug(" DeviceName " + BoxInfo.getItem("model"))
-		except:
-			sys.exc_clear()
+		except ImportError:
+			pass
 
 		try:
 			from Components.About import about
 			log.debug(" EnigmaVersion " + about.getEnigmaVersionString().strip())
 			log.debug(" ImageVersion " + about.getVersionString().strip())
-		except:
-			sys.exc_clear()
+		except ImportError:
+			pass
 
 		try:
 			#http://stackoverflow.com/questions/1904394/python-selecting-to-read-the-first-line-only
 			log.debug(" dreamboxmodel " + open("/proc/stb/info/model").readline().strip())
 			log.debug(" imageversion " + open("/etc/image-version").readline().strip())
 			log.debug(" imageissue " + open("/etc/issue.net").readline().strip())
-		except:
-			sys.exc_clear()
+		except OSError:
+			pass
 
 		try:
-			for key, value in six.iteritems(config.plugins.seriesplugin.dict()):
+			for key, value in config.plugins.seriesplugin.dict().items():
 				log.debug(" config..%s = %s" % (key, str(value.value)))
-		except Exception as e:
-			sys.exc_clear()
+		except Exception:
+			pass
 
 		global CompiledRegexpReplaceChars
 		try:
 			if config.plugins.seriesplugin.replace_chars.value:
 				CompiledRegexpReplaceChars = re.compile('[' + config.plugins.seriesplugin.replace_chars.value.replace("\\", "\\\\\\\\") + ']')
-		except:
+		except Exception:
 			log.exception(" Config option 'Replace Chars' is no valid regular expression")
 			CompiledRegexpReplaceChars = re.compile(r"[:\!/\\,\(\)'\?]")
 
@@ -198,9 +196,6 @@ def refactorTitle(org_, data):
 def checkIfTitleExistInDescription(org, data):
 	#check if use 'org' and 'title' in pattern and series-title already exist in org-description, then remove from org
 	if ("{org:s}" in config.plugins.seriesplugin.pattern_description.value) and ("{title:s}" in config.plugins.seriesplugin.pattern_description.value):
-		if isinstance(org, str) and isinstance(data["title"], unicode):
-			#convert org to unicode for compare with data["title"] if data["title"] has umlauts
-			org = unicode(org)
 		if data["title"].upper() in org.upper():
 			title_str = re.compile(data["title"], re.IGNORECASE)
 			org = title_str.sub("", org)
@@ -247,7 +242,7 @@ def refactorDirectory(org, data):
 		if dir and not os.path.exists(dir):
 			try:
 				os.makedirs(dir)
-			except:
+			except OSError:
 				log.exception("makedirs exception", dir)
 	return dir
 
@@ -311,7 +306,7 @@ class SeriesPluginWorker(Thread):
 		self.__pump = ePythonMessagePump()
 		try:
 			self.__pump_recv_msg_conn = self.__pump.recv_msg.connect(self.gotThreadMsg)
-		except:
+		except Exception:
 			self.__pump.recv_msg.get().append(self.gotThreadMsg)
 		self.__queue = ThreadQueue()
 
@@ -340,7 +335,7 @@ class SeriesPluginWorker(Thread):
 		self.__queue = ThreadQueue()
 		try:
 			self.__pump.recv_msg.get().remove(self.gotThreadMsg)
-		except:
+		except Exception:
 			pass
 		self.__pump_recv_msg_conn = None
 
@@ -436,7 +431,7 @@ class SeriesPlugin(Modules, ChannelsBase):
 					if callable(callback):
 						callback(msg)
 					return msg
-			except:
+			except Exception:
 				pass
 
 		# Check for episode information in title
@@ -460,7 +455,7 @@ class SeriesPlugin(Modules, ChannelsBase):
 		elif future:
 			identifier = self.identifier_future
 		else:
-			identifier = self.modules and self.instantiateModule(next(six.itervalues(self.modules)))
+			identifier = self.modules and self.instantiateModule(next(iter(self.modules.values())))
 
 		if not identifier:
 			msg = _("No identifier available") + "\n\n" + _("Please check Your installation")
@@ -485,8 +480,8 @@ class SeriesPlugin(Modules, ChannelsBase):
 
 			try:
 				serviceref = service.toString()
-			except:
-				sys.exc_clear()
+			except Exception:
+				pass
 				serviceref = str(service)
 			serviceref = re.sub('::.*', ':', serviceref)
 

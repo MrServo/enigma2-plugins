@@ -19,7 +19,7 @@ from xml.sax.handler import ContentHandler, feature_namespaces
 from xml.sax.saxutils import escape as escape_xml
 from twisted.python import util
 from twisted.web import http, resource
-from six.moves.urllib.parse import quote
+from urllib.parse import quote
 from time import time
 
 #DO NOT REMOVE THIS IMPORT
@@ -27,10 +27,22 @@ from time import time
 from .WebScreens import *
 #DO NOT REMOVE THIS IMPORT
 
-from .__init__ import decrypt_block
+
 from os import urandom
 
-import six
+
+def _decode_if_bytes(value):
+	if isinstance(value, bytes):
+		return value.decode("utf-8", "ignore")
+	return value
+
+
+def _normalize_request_args(args):
+	normalized = {}
+	for key, values in args.items():
+		key = _decode_if_bytes(key)
+		normalized[key] = [_decode_if_bytes(v) for v in values]
+	return normalized
 
 
 # The classes and Function in File handle all ScreenPage-based requests
@@ -65,7 +77,10 @@ class OneTimeElement(Element):
 				source.handleCommand(c)
 
 	def render(self, request):
-		request.write(self.source.getHTML(self.source_id))
+		data = self.source.getHTML(self.source_id)
+		if isinstance(data, str):
+			data = data.encode("utf-8")
+		request.write(data)
 
 	def execBegin(self):
 		self.suspended = False
@@ -150,7 +165,7 @@ class ListMacroItem:
 #===============================================================================
 class TextToHTML(Converter):
 	def getHTML(self, id):
-		return self.source.text.replace('\xc2\x86', '').replace('\xc2\x87', '').decode("utf-8", "ignore").encode("utf-8")  # encode & etc. here!
+		return self.source.text.replace('\xc2\x86', '').replace('\xc2\x87', '')
 
 #===============================================================================
 # TextToXML
@@ -161,7 +176,7 @@ class TextToHTML(Converter):
 
 class TextToXML(Converter):
 	def getHTML(self, id):
-		return escape_xml(self.source.text).replace('\xc2\x86', '').replace('\xc2\x87', '').replace("\x19", "").replace("\x1c", "").replace("\x1e", "").decode("utf-8", "ignore").encode("utf-8")
+		return escape_xml(self.source.text).replace('\xc2\x86', '').replace('\xc2\x87', '').replace("\x19", "").replace("\x1c", "").replace("\x1e", "")
 
 #===============================================================================
 # TextToURL
@@ -172,7 +187,7 @@ class TextToXML(Converter):
 
 class TextToURL(Converter):
 	def getHTML(self, id):
-		return self.source.text.replace(" ", "%20").replace("+", "%2b").replace("&", "%26").replace('\xc2\x86', '').replace('\xc2\x87', '').decode("utf-8", "ignore").encode("utf-8")
+		return self.source.text.replace(" ", "%20").replace("+", "%2b").replace("&", "%26").replace('\xc2\x86', '').replace('\xc2\x87', '')
 
 #===============================================================================
 # ReturnEmptyXML
@@ -223,7 +238,7 @@ class SimpleListFiller(Converter):
 		list = []
 		append = list.append
 		for element in conv_args:
-			if isinstance(element, six.string_types):
+			if isinstance(element, str):
 				append((element, None))
 			elif isinstance(element, ListItem):
 				append((element, element.filternum))
@@ -268,7 +283,7 @@ class ListFiller(Converter):
 		lutlist = []
 		append = lutlist.append
 		for element in conv_args:
-			if isinstance(element, six.string_types):
+			if isinstance(element, str):
 				append((element, None))
 			elif isinstance(element, ListItem):
 				append((lut[element.name], element.filternum))
@@ -314,7 +329,7 @@ def appendListItem(item, filternum, append):
 			time = int(item)
 			t = localtime(time)
 			append("%04d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday))
-		except:
+		except Exception:
 			append("---")
 	elif filternum == webifHandler.FILTER_TIME:
 		from time import localtime
@@ -323,14 +338,14 @@ def appendListItem(item, filternum, append):
 			time = int(item)
 			t = localtime(time)
 			append("%02d:%02d" % (t.tm_hour, t.tm_min))
-		except:
+		except Exception:
 			append("--:--")
 	elif filternum == webifHandler.FILTER_MINUTES:
 		time = 0
 		try:
 			time = int(item)
 			append("%d min" % (time / 60))
-		except:
+		except Exception:
 			append("-- min")
 	elif filternum == webifHandler.FILTER_URI_ATTRIB:
 		append(quote(item).replace("\"", "%22"))
@@ -517,7 +532,6 @@ class webifHandler(ContentHandler):
 		self.res.append('<?' + target + ' ' + data + '>')
 
 	def characters(self, ch):
-		ch = ch.encode('utf-8')
 		if self.mode == 0:
 			self.res.append(ch)
 		elif self.mode == 2:
@@ -560,7 +574,7 @@ def renderPage(request, path, session):
 
 	if config.plugins.Webinterface.anti_hijack.value:
 		for screen in handler.screens:
-			method = request.method
+			method = _decode_if_bytes(request.method)
 			if not screen.allow_GET and method == 'GET' and len(request.args) > 0:
 				request.setHeader("Allow", "POST")
 				request.write(
@@ -573,9 +587,10 @@ def renderPage(request, path, session):
 				return
 
 	# first, apply "commands" (aka. URL argument)
+	request_args = _normalize_request_args(request.args)
 	for x in handler.res:
 		if isinstance(x, Element):
-			x.handleCommand(request.args)
+			x.handleCommand(request_args)
 
 	handler.execBegin()
 
@@ -589,7 +604,7 @@ def renderPage(request, path, session):
 				x.setRequest(request)
 			x.render(request)
 		else:
-			request.write(str(x))
+			request.write(str(x).encode("utf-8"))
 
 	# if we met a "StreamingElement", there is at least one
 	# element which wants to output data more than once,
@@ -630,17 +645,10 @@ def requestFinish(handler, request, requestAlreadyFinished=False):
 				request.finish()
 			else:
 				print("[requestFinish] request already finished!")
-		except:
+		except Exception:
 			pass
 
 	del handler
-
-
-def validate_certificate(cert, key):
-	buf = decrypt_block(cert[8:], key)
-	if buf is None:
-		return None
-	return buf[36:107] + cert[139:196]
 
 
 def get_random():
@@ -651,5 +659,5 @@ def get_random():
 		result = xor(random, x)
 
 		return result
-	except:
+	except Exception:
 		return None

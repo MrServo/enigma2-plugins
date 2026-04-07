@@ -41,8 +41,6 @@ from ServiceReference import ServiceReference
 from .SeriesPlugin import getInstance, refactorTitle, refactorDescription, refactorDirectory
 from .Logger import log
 
-import six
-
 
 CompiledRegexpGlobEscape = re.compile(r'([\[\]\?*])')  # "[\\1]"
 
@@ -50,7 +48,7 @@ CompiledRegexpGlobEscape = re.compile(r'([\[\]\?*])')  # "[\\1]"
 # By Bin4ry
 def newLegacyEncode(string):
 	string2 = ""
-	for z, char in enumerate(string.decode("utf-8")):
+	for z, char in enumerate(string):
 		i = ord(char)
 		if i < 33:
 			string2 += " "
@@ -63,8 +61,9 @@ def newLegacyEncode(string):
 
 		else:
 			try:
-				string2 += char.encode('ascii', 'strict')
-			except:
+				char.encode('ascii', 'strict')
+				string2 += char
+			except Exception:
 				string2 += " "
 	return string2
 
@@ -181,12 +180,11 @@ def osrename(src, dst):
 		if not os.path.exists(to):
 			try:
 				os.rename(f, to)
-			except:
+			except OSError:
 				log.exception("rename error", f, to)
 		elif config.plugins.seriesplugin.rename_existing_files.value:
 			log.debug("Destination file already exists", to, " - Append '_'")
 			return osrename(src, dst + "_")
-			break
 		else:
 			log.warning(_("Skipping rename because file already exists") + "\n" + to + "\n\n" + _("Can be configured within the setup"))
 	return True
@@ -297,7 +295,7 @@ class SeriesPluginRenamer(object):
 		if data and isinstance(data, dict):
 			result = rename(servicepath, name, short, data)
 
-		elif data and isinstance(data, six.string_types):
+		elif data and isinstance(data, str):
 			msg = _("Failed: %s." % (str(data)))
 			log.debug(msg)
 			self.data.append(name + ": " + msg)

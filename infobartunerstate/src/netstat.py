@@ -11,7 +11,6 @@ from pwd import getpwuid
 from os import readlink
 from re import search
 from glob import glob
-from six import iteritems
 
 
 PROC_TCP = "/proc/net/tcp"
@@ -62,7 +61,7 @@ def netstat(getstate=None, getuid=True, getpid=True, readable=True):
     To get pid of all network process running on system, you must run this script
     as superuser
     '''
-    getstate = [key for key, value in iteritems(STATE) if value == getstate]
+    getstate = [key for key, value in STATE.items() if value == getstate]
     if getstate:
         getstate = getstate[0]
 
@@ -90,7 +89,7 @@ def netstat(getstate=None, getuid=True, getpid=True, readable=True):
             pid = _get_pid_of_inode(inode)				  # Get pid prom inode.
             try:											# try read the process name.
                 exe = readlink('/proc/' + pid + '/exe')
-            except:
+            except Exception:
                 exe = None
         else:
             pid = None
@@ -111,8 +110,8 @@ def _get_pid_of_inode(inode):
     '''
     for item in glob('/proc/[0-9]*/fd/[0-9]*'):
         try:
-            if search(inode, os.readlink(item)):
+            if search(inode, readlink(item)):
                 return item.split('/')[2]
-        except:
+        except Exception:
             pass
     return None

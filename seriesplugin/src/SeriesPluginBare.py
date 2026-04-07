@@ -15,9 +15,6 @@ from .SeriesPluginTimer import SeriesPluginTimer
 from .Logger import log
 
 
-import six
-
-
 loop_data = []
 loop_counter = 0
 
@@ -50,7 +47,7 @@ def bareGetEpisode(service_ref, name, begin, end, description, path, future=True
 			else:
 				return (name, description, path, log.get())
 
-		elif data and isinstance(data, six.string_types):
+		elif data and isinstance(data, str):
 			msg = _("Failed: %s." % (str(data)))
 			log.debug(msg)
 			loop_data.append(name + ": " + msg)

@@ -79,7 +79,7 @@ class TagEditor(Screen):
             try:
                 Title = ServiceCenter.getInstance().info(self.service).getName(self.service)
                 self.setTitle(_("Edit Tag(s) for: %s") % (Title))
-            except:
+            except Exception:
                 self.setTitle(_("Edit Tag(s)"))
 
     def defaulttaglist(self, tags):
@@ -111,7 +111,7 @@ class TagEditor(Screen):
             while "" in tags:
                 tags.remove("")
             file.close()
-        except IOError:  # , ioe:
+        except OSError:  # , ioe:
             tags = []
         return tags
 
@@ -120,7 +120,7 @@ class TagEditor(Screen):
             file = open(resolveFilename(SCOPE_CONFIG, "movietags"), "w")
             file.write("\n".join(tags) + "\n")
             file.close()
-        except IOError:  # , ioe:
+        except OSError:  # , ioe:
             pass
 
     def joinTags(self, taglist, newtags):
@@ -342,7 +342,7 @@ class MovieTagEditor(TagEditor):
                     metafile = open(meta_file, "w")
                     metafile.write("%s\n%s\n%s\n%s\n%s\n%s" % (sid, title, descr, time, tags, rest))
                     metafile.close()
-        except:
+        except Exception:
             from .Source.Globals import printStackTrace
             printStackTrace()
 

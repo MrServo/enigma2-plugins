@@ -3,7 +3,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from enigma import ePythonMessagePump
 
-from .__init__ import decrypt_block
 from .ThreadQueue import ThreadQueue
 import gdata.youtube
 import gdata.youtube.service
@@ -31,22 +30,6 @@ HTTPConnection.debuglevel = 1
 if 'HTTPSConnection' not in dir(httplib):
 	# python on enimga2 has no https socket support
 	gdata.youtube.service.YOUTUBE_USER_FEED_URI = 'http://gdata.youtube.com/feeds/api/users'
-
-
-def validate_cert(cert, key):
-	buf = decrypt_block(cert[8:], key)
-	if buf is None:
-		return None
-	return buf[36:107] + cert[139:196]
-
-
-def get_rnd():
-	try:
-		rnd = os.urandom(8)
-		return rnd
-	except:
-		return None
-
 
 std_headers = {
 	'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.6) Gecko/20100627 Firefox/3.6.6',
@@ -137,7 +120,7 @@ class CVevoSignAlgoExtractor:
             try:
                 self.playerData = urlopen(request).read()
                 self.playerData = self.playerData.decode('utf-8', 'ignore')
-            except:
+            except Exception:
                 printDBG('Unable to download playerUrl webpage')
                 return ''
 
@@ -171,7 +154,7 @@ class CVevoSignAlgoExtractor:
 
             try:
                 algoCodeObj = compile(self.fullAlgoCode, '', 'exec')
-            except:
+            except Exception:
                 printDBG('decryptSignature compile algo code EXCEPTION')
                 return ''
         else:
@@ -188,7 +171,7 @@ class CVevoSignAlgoExtractor:
         # execute prepared code
         try:
             exec(algoCodeObj, vGlobals, vLocals)
-        except:
+        except Exception:
             printDBG('decryptSignature exec code EXCEPTION')
             return ''
 
@@ -269,7 +252,7 @@ class GoogleSuggestions():
 						try:
 							charset = header.split(";")[1].split("=")[1]
 							print("[MyTube - GoogleSuggestions] Got charset %s" % charset)
-						except:
+						except Exception:
 							print("[MyTube - GoogleSuggestions] No charset in Header, falling back to %s" % charset)
 						data = data.decode(charset).encode("utf-8")
 						self.conn.close()
@@ -501,7 +484,7 @@ class MyTubeFeedEntry():
 						fmt_infomap[int(fmtid)] = "%s" % (unquote_plus(fmturl))
 					fmturl = fmtid = ""
 
-				except:
+				except Exception:
 					print("error parsing fmtstring:", fmtstring)
 
 			else:

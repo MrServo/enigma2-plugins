@@ -1,4 +1,3 @@
-from __future__ import print_function
 from __future__ import absolute_import
 # Screens
 from Screens.Screen import Screen
@@ -10,7 +9,7 @@ from Screens.MessageBox import MessageBox
 from Screens.LocationBox import LocationBox
 
 # for localized messages
-from . import _
+from . import _, __version__
 
 # GUI (Summary)
 from Screens.Setup import SetupSummary
@@ -22,7 +21,7 @@ from Components.config import KEY_OK
 
 # Error-print()
 
-from .EPGBackupTools import debugOut, PLUGIN_VERSION
+from .EPGBackupTools import debugOut
 from traceback import format_exc
 
 from .plugin import gUserScriptExists
@@ -103,18 +102,18 @@ class EPGBackupConfig(ConfigListScreen, Screen, HelpableScreen):
 		self["config"].isChanged = self._ConfigisChanged
 
 	def _layoutFinished(self):
-		self.setTitle(_("EPGBackup Setup") + " V%s" % (PLUGIN_VERSION))
+		self.setTitle(_("EPGBackup Setup") + " V%s" % (__version__))
 
 	def removeNotifiers(self):
 		try:
 			config.plugins.epgbackup.backup_strategy.removeNotifier(self.updateVariableHelpText)
-		except:
+		except Exception:
 			debugOut("removeNotifiers-Error:\n" + str(format_exc()), forced=True)
 
 	def showMainHelp(self):
-		from .plugin import epgBackuphHelp
-		if epgBackuphHelp:
-			epgBackuphHelp.open(self.session)
+		from .plugin import showHelp
+		if showHelp:
+			showHelp(self.session)
 
 	def showKeyHelp(self):
 		self.session.openWithCallback(self.callHelpAction, HelpMenu, self.helpList)
@@ -155,7 +154,7 @@ class EPGBackupConfig(ConfigListScreen, Screen, HelpableScreen):
 						epgbackup.setNextBootRestore()
 				elif menuinfo == "MENU_RETURN_MAINHELP":
 					self.showMainHelp()
-		except:
+		except Exception:
 			debugOut("menuCallback-Error:\n" + str(format_exc()), forced=True)
 
 	def _getConfig(self):
@@ -189,7 +188,7 @@ class EPGBackupConfig(ConfigListScreen, Screen, HelpableScreen):
 
 			self["config"].list = self.list
 			self["config"].setList(self.list)
-		except:
+		except Exception:
 			debugOut("_getConfig-Error:\n" + str(format_exc()), forced=True)
 
 	def _checkNeedsRestart(self):
@@ -243,7 +242,7 @@ class EPGBackupConfig(ConfigListScreen, Screen, HelpableScreen):
 		try:
 			if configelement == config.plugins.epgbackup.backup_strategy:
 				self["help"].text = configelement.getChoices()[configelement.getIndex()][2]
-		except:
+		except Exception:
 			debugOut("updateVariableHelpText-Error:\n" + str(format_exc()), forced=True)
 
 	def pageup(self):

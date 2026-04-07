@@ -364,7 +364,7 @@ class NcidClientPhonebook:
 					debug("[NcidClientPhonebook] added %s with %s to Phonebook.txt" % (number, name.strip()))
 					return True
 
-				except IOError:
+				except OSError:
 					return False
 
 	def remove(self, number):
@@ -1024,7 +1024,7 @@ class NcidLineReceiver(LineReceiver):
 			date = None
 			try:
 				date = datetime.strptime("%s - %s" % (self.date, self.time), "%d%m%Y - %H%M")
-			except:
+			except Exception:
 				date = datetime.strptime("%s - %s" % (self.date, self.time), "%m%d%Y - %H%M")
 
 		self.date = date.strftime("%d.%m.%Y - %H:%M")

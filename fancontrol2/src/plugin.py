@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 # FanControl2
 # joergm6 IHAD
 # PID-controller by Lukasz S.
@@ -47,12 +45,12 @@ try:
 	from Components.SystemInfo import BoxInfo
 	IMAGEDISTRO = BoxInfo.getItem("distro")
 	MACHINE = BoxInfo.getItem("machinebuild")
-except:
+except ImportError:
 	from boxbranding import getImageDistro, getBoxType
 	IMAGEDISTRO = getImageDistro()
 	MACHINE = getBoxType()
 
-from six.moves import queue, range
+import queue
 
 Briefkasten = queue.Queue()
 
@@ -60,14 +58,14 @@ Briefkasten = queue.Queue()
 def main(session, **kwargs):
 	try:
 		session.open(FanControl2Plugin)
-	except:
+	except Exception:
 		FClog("Pluginexecution failed")
 
 
 def mainMonitor(session, **kwargs):
 	try:
 		session.open(FanControl2Monitor)
-	except:
+	except Exception:
 		FClog("Pluginexecution failed")
 
 
@@ -99,7 +97,7 @@ def FClog(wert):
 					f.write(strftime("%H:%M:%S ") + wert + "\r\n")
 				finally:
 					f.close()
-			except IOError:
+			except OSError:
 				FC2Log.append(strftime("%H:%M:%S ") + "Event-Log-Error")
 
 
@@ -126,7 +124,7 @@ def FCdata():
 					f.write("\r\n")
 				finally:
 					f.close()
-			except IOError:
+			except OSError:
 				FC2Log.append(strftime("%H:%M:%S ") + "Event-Log-Error")
 
 
@@ -654,9 +652,9 @@ class FanControl2SpezialSetup(ConfigListScreen, Screen):
 				f = open(config.plugins.FanControl.LogPath.value + "FC2data.csv", "w")
 				try:
 					f.write(HeadLine)
-				except:
+				except Exception:
 					f.close()
-			except IOError:
+			except OSError:
 				FClog("Data-Log-Error")
 
 	def restartGUI(self, answer):
@@ -888,7 +886,7 @@ def getstatusoutput(cmd):
 			sts = 0
 		if text[-1:] == '\n':
 			text = text[:-1]
-	except:
+	except Exception:
 		sts = 1
 		text = ""
 		FClog("Error on call OS program (smartctl/hdparm)")
@@ -939,14 +937,13 @@ def GetHDDtemp(OneTime):
 					if stat == 0:
 						try:
 							AktHDD.append(int(wert[wert.find("Always") + 6:].replace(" ", "").replace("-", "")[:2]))
-						except:
+						except Exception:
 							AktHDD.append(0)
 					if len(AktHDD) == 0:
 						AktHDD = [0]
 					FClog("HDD Temp %dC" % (AktHDD[-1]))
 	if len(AktHDD) == 0:
 		AktHDD = [0]
-	return
 
 
 def HDDsSleeping():
@@ -1318,14 +1315,14 @@ def autostart(reason, **kwargs):
 				try:
 					addExternalChild(("fancontrol", root, "Fan Control 2", Version, True))
 					FClog("use new WebIF")
-				except:
+				except Exception:
 					addExternalChild(("fancontrol", root))
 					FClog("use old WebIF")
 			if os.path.exists("/usr/lib/enigma2/python/Plugins/Extensions/OpenWebif/pluginshook.src"):
 				try:
 					addExternalChild(("fancontrol", root, "Fan Control 2", Version))
 					FClog("use new OpenWebIF")
-				except:
+				except Exception:
 					pass
 		if not os.path.exists("/proc/stb/fp/fan_vlt"):
 			Notifications.AddNotification(MessageBox, _("Box has no fancontrol hardware -> FC2 deactivated"), type=MessageBox.TYPE_INFO, timeout=10)

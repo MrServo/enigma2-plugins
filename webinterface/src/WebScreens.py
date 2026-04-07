@@ -72,7 +72,7 @@ class AboutWebScreen(WebScreen):
 		from Components.Sources.StaticText import StaticText
 		try:
 			from Tools.StbHardware import getFPVersion
-		except:
+		except ImportError:
 			from Tools.DreamboxHardware import getFPVersion
 		from Components.SystemInfo import BoxInfo
 		hw = BoxInfo.getItem("model")
@@ -87,16 +87,19 @@ class AboutWebScreen(WebScreen):
 			from boxbranding import getImageVersion, getImageBuild
 			self["EnigmaVersion"] = StaticText(getEnigmaVersionString())
 			self["ImageVersion"] = StaticText(getImageVersion() + '.' + getImageBuild())
-		except:
+		except ImportError:
 			self["EnigmaVersion"] = StaticText(about.getEnigmaVersionString())
 			self["ImageVersion"] = StaticText(about.getVersionString())
 		self["WebIfVersion"] = StaticText(config.plugins.Webinterface.version.value)
 		self["FpVersion"] = StaticText(str(getFPVersion()))
-		try:
-			model = hw.get_device_model()
-		except:
-			model = hw.get_device_name()
-		self["DeviceName"] = StaticText(model)
+		if hasattr(hw, "get_device_model"):
+			try:
+				model = hw.get_device_model()
+			except Exception:
+				model = getattr(hw, "get_device_name", lambda: "unknown")()
+		else:
+			model = hw or "unknown"
+		self["DeviceName"] = StaticText(str(model))
 
 
 class VolumeWebScreen(WebScreen):
@@ -416,7 +419,7 @@ class DeviceInfoWebScreen(WebScreen):
 		from Components.Sources.StaticText import StaticText
 		try:
 			from Tools.StbHardware import getFPVersion
-		except:
+		except ImportError:
 			from Tools.DreamboxHardware import getFPVersion
 		from Components.SystemInfo import BoxInfo
 		hw = BoxInfo.getItem("model")
@@ -428,7 +431,7 @@ class DeviceInfoWebScreen(WebScreen):
 		self["ImageVersion"] = StaticText(about.getVersionString())
 		self["WebIfVersion"] = StaticText(config.plugins.Webinterface.version.value)
 		self["FpVersion"] = StaticText(str(getFPVersion()))
-		self["DeviceName"] = StaticText(hw.get_device_name())
+		self["DeviceName"] = StaticText(str(hw.get_device_name() if hasattr(hw, "get_device_name") else (hw or "unknown")))
 
 
 class ServicePlayableWebScreen(WebScreen):
@@ -453,14 +456,6 @@ class SleepTimerWebScreen(WebScreen):
 
 		from .WebComponents.Sources.SleepTimer import SleepTimer
 		self["SleepTimer"] = SleepTimer(session)
-
-
-class TPMWebScreen(WebScreen):
-	def __init__(self, session, request):
-		WebScreen.__init__(self, session, request)
-
-		from .WebComponents.Sources.TPMChallenge import TPMChallenge
-		self["TPM"] = TPMChallenge()
 
 
 class ExternalWebScreen(WebScreen):

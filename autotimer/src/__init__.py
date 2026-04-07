@@ -5,7 +5,7 @@ import gettext
 try:
 	from Components.SystemInfo import BoxInfo
 	IMAGEDISTRO = BoxInfo.getItem("distro")
-except:
+except ImportError:
 	from boxbranding import getImageDistro
 	IMAGEDISTRO = getImageDistro()
 import six
@@ -108,3 +108,5 @@ except NameError:
 	itervalues = lambda d: d.values()
 
 __all__ = ['_', 'config', 'iteritems', 'itervalues', 'xrange']
+
+__version__ = "1.0"

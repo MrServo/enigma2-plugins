@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from . import _, config
 
 # GUI (Screens)
-from Screens.Screen import Screen
+from Screens.Screen import Screen, ScreenSummary
 from Screens.HelpMenu import HelpableScreen
 from Screens.MessageBox import MessageBox
 from Screens.ChoiceBox import ChoiceBox
@@ -20,7 +20,7 @@ from Components.Sources.StaticText import StaticText
 from enigma import getDesktop
 
 
-class AutoTimerOverviewSummary(Screen):
+class AutoTimerOverviewSummary(ScreenSummary):
 	skin = """
 	<screen position="0,0" size="132,64">
 		<widget source="parent.Title" render="Label" position="6,4" size="120,21" font="Regular;18" />
@@ -31,7 +31,7 @@ class AutoTimerOverviewSummary(Screen):
 	</screen>"""
 
 	def __init__(self, session, parent):
-		Screen.__init__(self, session, parent=parent)
+		ScreenSummary.__init__(self, session, parent=parent)
 		self["entry"] = StaticText("")
 		self.onShow.append(self.addWatcher)
 		self.onHide.append(self.removeWatcher)
@@ -126,11 +126,11 @@ class AutoTimerOverview(Screen, HelpableScreen):
 		self.onFirstExecBegin.append(self.firstExec)
 
 	def firstExec(self):
-		from .plugin import autotimerHelp
-		if config.plugins.autotimer.show_help.value and autotimerHelp:
+		from .plugin import showHelp
+		if config.plugins.autotimer.show_help.value and showHelp:
 			config.plugins.autotimer.show_help.value = False
 			config.plugins.autotimer.show_help.save()
-			autotimerHelp.open(self.session)
+			showHelp(self.session)
 
 	def setCustomTitle(self):
 		from .plugin import AUTOTIMER_VERSION
@@ -233,11 +233,11 @@ class AutoTimerOverview(Screen, HelpableScreen):
 					from RecordTimer import RecordTimerEntry
 					recordHandler = NavigationInstance.instance.RecordTimer
 					for timer in recordHandler.timer_list[:]:  # '[:]' for working on a copy, avoid processing a changing list
-						#print '[AutoTimerOverview] checking whether timer should be deleted: ', timer
+						# print '[AutoTimerOverview] checking whether timer should be deleted: ', timer
 						if timer:
 							for entry in timer.log_entries:
 								if len(entry) == 3:
-									#print '[AutoTimerOverview] checking line: ', entry[2]
+									# print '[AutoTimerOverview] checking line: ', entry[2]
 									if entry[2] == '[AutoTimer] Try to add new timer based on AutoTimer ' + cur.name + '.':
 										NavigationInstance.instance.RecordTimer.removeEntry(timer)
 										break
@@ -272,8 +272,8 @@ class AutoTimerOverview(Screen, HelpableScreen):
 			(_("Create a new timer using the wizard"), "newwizard")
 		]
 
-		from .plugin import autotimerHelp
-		if autotimerHelp:
+		from .plugin import showHelp
+		if showHelp:
 			list.insert(0, (_("Help"), "help"))
 			list.insert(1, (_("Frequently asked questions"), "faq"))
 
@@ -294,15 +294,11 @@ class AutoTimerOverview(Screen, HelpableScreen):
 		ret = ret and ret[1]
 		if ret:
 			if ret == "help":
-				from .plugin import autotimerHelp
-				autotimerHelp.open(self.session)
+				from .plugin import showHelp
+				showHelp(self.session)
 			elif ret == "faq":
-				from Plugins.SystemPlugins.MPHelp import XMLHelpReader
-				from Plugins.SystemPlugins.MPHelp.plugin import PluginHelp
-				from Tools.Directories import resolveFilename, SCOPE_PLUGINS
-				reader = XMLHelpReader(resolveFilename(SCOPE_PLUGINS, "Extensions/AutoTimer/faq.xml"))
-				autotimerFaq = PluginHelp(*reader)
-				autotimerFaq.open(self.session)
+				from .plugin import showHelp
+				showHelp(self.session, True)
 			elif ret == "preview":
 				# todo timeout / error handling
 				self.autotimer.parseEPG(simulateOnly=True, callback=self.openPreview)
